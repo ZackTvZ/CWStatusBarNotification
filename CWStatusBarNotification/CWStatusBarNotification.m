@@ -125,6 +125,9 @@
 
 - (BOOL)prefersStatusBarHidden
 {
+    if (@available(iOS 13.0, *)) {
+        return YES;
+    }
     CGFloat statusBarHeight = [[UIApplication sharedApplication] statusBarFrame].size.height;
     return !(statusBarHeight > 0);
 }
@@ -138,40 +141,40 @@ typedef void(^CWDelayedBlockHandle)(BOOL cancel);
 
 static CWDelayedBlockHandle perform_block_after_delay(CGFloat seconds, dispatch_block_t block)
 {
-	if (block == nil) {
-		return nil;
-	}
+    if (block == nil) {
+        return nil;
+    }
 
-	__block dispatch_block_t blockToExecute = [block copy];
-	__block CWDelayedBlockHandle delayHandleCopy = nil;
+    __block dispatch_block_t blockToExecute = [block copy];
+    __block CWDelayedBlockHandle delayHandleCopy = nil;
 
-	CWDelayedBlockHandle delayHandle = ^(BOOL cancel){
-		if (NO == cancel && nil != blockToExecute) {
-			dispatch_async(dispatch_get_main_queue(), blockToExecute);
-		}
+    CWDelayedBlockHandle delayHandle = ^(BOOL cancel){
+        if (NO == cancel && nil != blockToExecute) {
+            dispatch_async(dispatch_get_main_queue(), blockToExecute);
+        }
 
-		blockToExecute = nil;
-		delayHandleCopy = nil;
-	};
+        blockToExecute = nil;
+        delayHandleCopy = nil;
+    };
 
-	delayHandleCopy = [delayHandle copy];
+    delayHandleCopy = [delayHandle copy];
 
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, seconds * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-		if (nil != delayHandleCopy) {
-			delayHandleCopy(NO);
-		}
-	});
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, seconds * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        if (nil != delayHandleCopy) {
+            delayHandleCopy(NO);
+        }
+    });
 
-	return delayHandleCopy;
+    return delayHandleCopy;
 };
 
 static void cancel_delayed_block(CWDelayedBlockHandle delayedHandle)
 {
-	if (delayedHandle == nil) {
-		return;
-	}
+    if (delayedHandle == nil) {
+        return;
+    }
 
-	delayedHandle(YES);
+    delayedHandle(YES);
 }
 # pragma mark - CWStatusBarNotification
 
@@ -242,7 +245,16 @@ static void cancel_delayed_block(CWDelayedBlockHandle delayedHandle)
     if (SYSTEM_VERSION_LESS_THAN(@"8.0") && UIInterfaceOrientationIsLandscape([UIApplication sharedApplication].statusBarOrientation)) {
         statusBarHeight = [[UIApplication sharedApplication] statusBarFrame].size.width;
     }
-    return statusBarHeight > 0 ? statusBarHeight : 20;
+    
+    CGFloat minHeight = 20;
+    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
+    CGSize screenSize = [[UIScreen mainScreen] bounds].size;
+
+    if (screenSize.height >= 812.0f)
+        minHeight = 44;
+    }
+    
+    return statusBarHeight > 0 ? statusBarHeight : minHeight;
 }
 
 - (CGFloat)getStatusBarWidth
@@ -378,7 +390,17 @@ static void cancel_delayed_block(CWDelayedBlockHandle delayedHandle)
 
 - (void)createNotificationWindow
 {
-    self.notificationWindow = [[CWWindowContainer alloc] initWithFrame:[[[UIApplication sharedApplication] keyWindow] bounds]];
+//    if (@available(iOS 13.0, *)) {
+//        for (UIWindowScene *windowScene in [[UIApplication sharedApplication] connectedScenes]){
+//                if(windowScene.activationState == UISceneActivationStateForegroundActive){
+//                    self.notificationWindow = [[CWWindowContainer alloc] initWithWindowScene:windowScene];
+//                    break;
+//                }
+//            }
+//    } else {
+        self.notificationWindow = [[CWWindowContainer alloc] initWithFrame:[[[UIApplication sharedApplication] keyWindow] bounds]];
+//    }
+    
     self.notificationWindow.backgroundColor = [UIColor clearColor];
     self.notificationWindow.userInteractionEnabled = YES;
     self.notificationWindow.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
